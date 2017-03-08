@@ -1,0 +1,38 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+* {
+  font-family: Arial, Helvetica, sans-serif;
+}
+body {
+  /*margin: 2em;*/
+  overflow-y: auto;
+  color: #888;
+  background-color: #eee;
+}
+a {
+  text-decoration: none;
+  cursor: pointer;
+  cursor: hand;
+}
+
+*:focus {
+  background-color: Aqua;
+}
+
+/*
+  themed styles
+*/
+
+/* zolderkamer */
+body.attic {
+  background-color: #414a5b;
+}
+body.attic nav {
+  box-shadow: 0 8px 6px -6px #414a5b;
+}
+body.attic dumpert-post {
+  background-color: #21242d;
+}
