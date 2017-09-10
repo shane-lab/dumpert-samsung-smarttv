@@ -46,7 +46,7 @@ export interface IPost {
 export class DumpertService {
 
   // used to bypass cloudflare
-  static URI: string = 'http://dumpert.shanelab.nl/api.php'; // 'http://www.dumpert.nl/mobile_api/json';
+  static URI: string = 'https://dumpert.shanelab.nl/api.php'; // 'http://www.dumpert.nl/mobile_api/json';
 
   static ROUTES = {
     LATEST: 'latest',

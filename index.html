@@ -10,9 +10,34 @@
     <script type="text/javascript" language="javascript" src="$MANAGER_WIDGET/Common/API/TVKeyValue.js"></script>
 
     <!-- samsung plugins -->
-    <object id="pluginObjectAudio" border=0 classid="clsid:SAMSUNG-INFOLINK-AUDIO" style="position: absolute; top: 0; left: 0; display: none; opacity: 0.0;"></object>
-    <object id="pluginObjectTVMW" border=0 classid="clsid:SAMSUNG-INFOLINK-TVMW" style="position: absolute; top: 0; left: 0; display: none; opacity: 0.0;"></object>
-    <object id="pluginObjectNNavi" border=0 classid="clsid:SAMSUNG-INFOLINK-NNAVI" style="position: absolute; top: 0; left: 0; display: none; opacity: 0.0;"></object>
+    <object id="PluginSef" border="0" classid="clsid:SAMSUNG-INFOLINK-SEF" class="hidden"></object><!-- Play Files 2011+ models -->
+    <object id="pluginPlayer" border=0 classid="clsid:SAMSUNG-INFOLINK-PLAYER" class="hidden"></object><!-- Play Files 2010 models -->
+    <object id="pluginAudio" border=0 classid="clsid:SAMSUNG-INFOLINK-AUDIO" class="hidden"></object><!-- Volume Control -->
+    <object id="pluginObjectTVMW" border=0 classid="clsid:SAMSUNG-INFOLINK-TVMW" class="hidden"></object><!--  registerallkey - screensaver -->
+    <object id="pluginScreen" border=0 classid="clsid:SAMSUNG-INFOLINK-SCREEN" class="hidden"></object><!-- 3D -->
+    <object id="pluginNetwork" classid="clsid:SAMSUNG-INFOLINK-NETWORK" border="0" class="hidden"></object><!-- get MAC address -->
+    <object id="pluginObjectNNavi" border=0 classid="clsid:SAMSUNG-INFOLINK-NNAVI" class="hidden"></object><!-- firmware 2010/2011 - Tools -->
+    <object id="pluginTV" classid="clsid:SAMSUNG-INFOLINK-TV" border="0" class="hidden"></object><!-- SetWatchDog / GetDevice -->
+    <object id="pluginObjectAppCommon" border=0 classid="clsid:SAMSUNG-INFOLINK-APPCOMMON" class="hidden"></object><!-- register key -->
+    <object id="pluginTime" border=0 classid="clsid:SAMSUNG-INFOLINK-TIME" class="hidden"></object><!-- Time -->
+    <object id="pluginFrontPanel" border=0 classid="clsid:SAMSUNG-INFOLINK-FRONTPANEL" class="hidden"></object><!-- Frontpanel BD-Player -->
+    <object id="pluginDevice" border=0 classid="clsid:SAMSUNG-INFOLINK-DEVICE" class="hidden"></object><!-- get model type -->
+
+    <script>
+      // enable default volume
+      window.onShow = function () {
+        var
+          pluginAPII = new Common.API.Plugin(),
+          TVKey = new Common.API.TVKeyValue();
+        var PL_NNAVI_STATE_BANNER_VOL = 1;
+        pluginAPII.SetBannerState(PL_NNAVI_STATE_BANNER_VOL);
+        pluginAPII['unregistKey'](TVKey.KEY_VOL_UP);
+        pluginAPII['unregistKey'](TVKey.KEY_VOL_DOWN);
+        pluginAPII['unregistKey'](TVKey.KEY_PANEL_VOL_UP);
+        pluginAPII['unregistKey'](TVKey.KEY_PANEL_VOL_DOWN);
+        pluginAPII['unregistKey'](TVKey.KEY_MUTE);
+      }
+    </script>
 
     <script type="text/javascript" language="javascript" src="./SamsungAPI.js"></script>
   </head>

@@ -1,23 +1,24 @@
-import { Component, ViewChild, Input, HostListener } from '@angular/core';
+import { Component, ViewChild, ElementRef, Input, HostListener } from '@angular/core';
 
 import { DumpertMediaComponent } from './dumpert-media.component';
 
 import { IPost, IMedia } from './dumpert.service';
 
-declare var SamsungAPI: any;
-
 @Component({
   selector: 'dumpert-modal',
   template: `
     <div *ngIf="post" class="modal">
-      <div id="sidebar">
-        <header>{{post.title}}<span (click)="close()" id="close" [innerHTML]="closeSign"></span></header>
+      <div #sidebar id="sidebar">
+        <header>
+          <span (click)="close()" id="close" [innerHTML]="closeSign"></span>
+          <p class="title">{{post.title}}</p>
+        </header>
         <details id="stats" *ngIf="post.stats" open>
           <span class="extra" style="margin-top:4px;">{{getDateTime()}}</span>
           <p>Views: {{post.stats.views}}<span class="extra">(today: {{post.stats.viewsToday}})</span></p>
           <p>Kudos: {{post.stats.kudos}}<span class="extra">(today: {{post.stats.kudosToday}})</span></p>
         </details>
-        <article [innerHTML]="post.description">{{post.description}}</article>
+        <article>{{post.description}}</article>
         <footer>{{post.tags}}</footer>
       </div>
       <div id="content">
@@ -56,23 +57,28 @@ declare var SamsungAPI: any;
     }
     #sidebar header #close {
       position: relative;
-      top: -70px;
-      left: 270px;
+      top: 6px;
+      left: 282px;
+      padding: 0;
       cursor: pointer;
       font-size: 20px;
     }
+    #sidebar header p.title {
+      margin-top: 0;
+    }
     #sidebar details .extra {
       color: #888;
-      font-size: 10px;
+      font-size: 12px;
     }
     #sidebar footer {
       position: absolute;
       bottom: 0;
       border-top: 1px solid #474747;
     }
-    #sidebar header, #sidebar footer {
+    #sidebar footer {
       height: 56px;
       line-height: 56px;
+      width: 100%;
     }
     #sidebar article {
       position: relative;
@@ -90,97 +96,83 @@ declare var SamsungAPI: any;
       overflow: hidden;
       background-color: #000;
     }
-
   `]
 })
 export class DumpertModalComponent {
-
-  private active: boolean;
 
   private post: IPost;
 
   private mediaIndex: number = 0;
 
-  private closeSign: string = SamsungAPI.isSamsungSmartTV() ? '&#8634;' : '&#935;'
+  private closeSign: string = SamsungAPI.isSamsungTv() ? '&#8634;' : '&#935;'
 
   @ViewChild(DumpertMediaComponent)
   public readonly media: DumpertMediaComponent;
 
+  @ViewChild('sidebar')
+  private readonly sidebarEl: ElementRef;
+  
+  public hasPost(): boolean {
+    return !!this.post;
+  }
+
   public open(post: IPost): void {
-    if (post !== undefined && post != null) {
-      this.post = post;
-      this.active = true;
+    if (!post) {
+      return;
     }
+
+    this.post = post;
   }
 
   public close(): void {
     this.post = null;
-    this.active = false;
-  }
-
-  public isActive(): boolean {
-    return this.active;
   }
 
   private getDateTime(): string {
-    let dateTime: string;
-
-    if (this.post) {
-      let dateSegments = this.post.date.substr(0, 10).split('-');
-
-      let date = '';
-      for (let i = dateSegments.length - 1; i >= 0; i--) {
-        date += `${dateSegments[i]}${(i === 0) ? '' : '/'}`;
-      }
-
-      let time = this.post.date.substr(11, this.post.date.length).split('+')[0];
-
-      dateTime = `${date} - ${time}`;
+    if (!this.post) {
+      return null;
     }
 
-    return dateTime
+    let dateSegments = this.post.date.substr(0, 10).split('-');
+
+    let date = dateSegments.reduceRight((a, b, i) => `${a}/${b}`);
+
+    let time = this.post.date.substr(11, this.post.date.length).split('+')[0];
+
+    return `${date} - ${time}`
   }
 
   private getMedia(): IMedia {
     if (!this.hasPost()) {
       this.close();
 
-      return;
+      return null;
     }
 
     let index = this.mediaIndex = (this.mediaIndex || 0);
 
     return this.post.media[index];
   }
-  
-  private hasPost(): boolean {
-    return this.post !== undefined && this.post != null;
-  }
 
-  @HostListener(`window:${SamsungAPI.eventName}`, ['$event'])
-  private handleKeyboardEvent(event: KeyboardEvent) {
+  public onKeyDown(keyCode: number) {
     if (!this.post) {
       return;
     }
 
-    var key = event.keyCode;
+    switch(keyCode) {
+      case SamsungAPI.tvKey.KEY_RETURN:
+        this.close();
+        break;
+      case SamsungAPI.tvKey.KEY_INFO: {
+        let sidebar = this.sidebarEl.nativeElement as HTMLElement;
 
-    if (key === SamsungAPI.tvKey.KEY_RETURN) {
-      this.close();
-    } else if (key === SamsungAPI.tvKey.KEY_INFO) {
-      var details = document.getElementById('stats');
-
-      if (details) {
-        if (details.hasAttribute('open')) {
-          details.removeAttribute('open');
-          // oldbrowser fallback
-          details.style.display = 'hidden';
-        } else {
-          details.setAttribute('open', 'open');
-          // oldbrowser fallback
-          details.style.display = 'block';
+        if (sidebar) {
+          sidebar.style.display = !sidebar.style.display ? 'none' : null;
         }
+        break;
       }
     }
+
+    // this.media.onKeyDown(keyCode);
   }
 }

@@ -2,9 +2,9 @@ import { Component, ViewChild, HostListener } from '@angular/core';
 
 import { DumpertListComponent } from './dumpert-list.component';
 
-import { DumpertService } from './dumpert.service';
+import { DumpertModalComponent } from './dumpert-modal.component';
 
-declare var SamsungAPI: any;
+import { DumpertService, IPost } from './dumpert.service';
 
 enum Mode {
   NavMode = 0,
@@ -12,8 +12,8 @@ enum Mode {
 };
 
 enum ColorTheme {
-  Dumpert = 0,
-  Attic = 1
+  Classic = 0,
+  Darken = 1
 }
 
 @Component({
@@ -21,12 +21,13 @@ enum ColorTheme {
   template: `
     <nav [class]="mode === 0 ? 'selected' : ''">
       <ul>
-        <li *ngFor="let route of routes; let i=index">
-            <span (click)="onClick(route)" [ngClass]="[(activeRoute.toLowerCase() === route.toLowerCase() ? 'active' : ''), (mode === 0 && linkIndex === i ? 'selected' : '')]">{{route}}</span><span *ngIf="activeRoute.toLowerCase() === route.toLowerCase()" style="color: #FF9800;">#{{pageIndex || 0}}</span>
+        <li *ngFor="let route of routes; let i=index" [ngClass]="[(activeRoute.toLowerCase() === route.toLowerCase() ? 'active' : ''), (mode === 0 && linkIndex === i ? 'selected' : '')]">
+            <span (click)="onRouteClick(route)">{{route}}</span><span *ngIf="activeRoute.toLowerCase() === route.toLowerCase()" style="color: #FF9800;">#{{(pageIndex || 0) + 1}}</span>
         </li>
       </ul>
     </nav>
     <dumpert-list [route]="activeRoute" [class]="mode === 1 ? 'selected' : ''"></dumpert-list>
+    <dumpert-modal></dumpert-modal>
   `,
   styles: [`
     nav {
@@ -70,11 +71,14 @@ enum ColorTheme {
     nav ul li span {
       cursor: pointer;
     }
-    nav ul li span.active {
+    nav ul li span:hover {
+      color: #eaf7d6;
+    }
+    nav ul li.active > span {
       color: #ecffde;
       text-shadow: 2px 2px 5px #54b00f;
     }
-    nav.selected ul li span.selected {
+    nav.selected ul li.selected > span {
       color: #54b00f;
       text-shadow: 2px 2px 5px #54b00f;
     }
@@ -87,9 +91,6 @@ enum ColorTheme {
     }
     dumpert-list.selected {
       opacity: 1.0;
-    }
-    dumpert-list dumpert-post {
-      color: red;
     }
   `]
 })
@@ -105,85 +106,131 @@ export class AppComponent {
 
   private mode: Mode = Mode.ListMode;
 
+  private theme: ColorTheme = ColorTheme.Classic;
+
   @ViewChild(DumpertListComponent)
   public readonly list: DumpertListComponent;
+  
+  @ViewChild(DumpertModalComponent)
+  private readonly modal: DumpertModalComponent;
 
-  public onClick(route: any) {
-    if (this.routes.indexOf(route) >= 0) {
-      this.activeRoute = route;
+  ngOnInit() {
+    this.list.clickedPost.subscribe(this.openModal.bind(this));
+    this.list.selectedElement.subscribe(this.scrollToElement);
+  }
 
-      this.pageIndex = 0;
-
-      this.list.loadPosts(route, this.pageIndex);
+  public onRouteClick(route: string) {
+    if (this.routes.indexOf(route) === -1) {
+      return;
     }
+
+    this.activeRoute = route;
+
+    this.pageIndex = 0;
+
+    this.list.loadPosts(route, this.pageIndex);
+  }
+
+  private openModal(post: IPost) {
+    if (!post) {
+      return;
+    }
+
+    this.modal.open(post);
+  }
+  
+  private scrollToElement(elem: HTMLElement) {
+    if (!elem) {
+      return;
+    }
+
+    document.body.scrollTop = elem.offsetTop - 15;
   }
 
   @HostListener(`window:${SamsungAPI.eventName}`, ['$event'])
   public handleKeyboardEvent(event: any) {
-    if (this.list.isModalActive()) {
-      return;
-    }
+    let keyCode = event.keyCode;
 
-    var keyCode = event.keyCode;
-    if (this.mode === Mode.NavMode) {
-      this.handleNavKeyboard(keyCode);
-    } else if (this.mode === Mode.ListMode) {
-      this.handleListKeyboard(keyCode);
+    if (this.modal.hasPost()) {
+      this.modal.onKeyDown(keyCode);
+    } else {
+      if (this.mode === Mode.NavMode) {
+        this.handleNavKeyboard(keyCode);
+      } else if (this.mode === Mode.ListMode) {
+        this.handleListKeyboard(keyCode);
+      }
+      if (keyCode === SamsungAPI.tvKey.KEY_0) {
+        let themeIndex = this.theme + 1;
+
+        if (themeIndex > (Object.keys(ColorTheme).length / 2) - 1) {
+          themeIndex = 0;
+        }
+
+        document.body.classList.remove(ColorTheme[this.theme].toLowerCase());
+
+        this.theme = themeIndex;
+
+        document.body.classList.add(ColorTheme[this.theme].toLowerCase());
+      }
     }
   }
 
   private handleNavKeyboard(keyCode: number) {
-    let linkIndex = this.linkIndex;
-    if (keyCode === SamsungAPI.tvKey.KEY_ENTER) {
-      this.onClick(this.routes[linkIndex]);
-    } else if (keyCode === SamsungAPI.tvKey.KEY_LEFT) {
-      let index = linkIndex - 1;
+    switch(keyCode) {
+      case SamsungAPI.tvKey.KEY_ENTER:
+        this.onRouteClick(this.routes[this.linkIndex]);
+        break;
+      case SamsungAPI.tvKey.KEY_TOOLS:
+        this.mode = Mode.ListMode;
+        break;
+      case SamsungAPI.tvKey.KEY_LEFT:
+      case SamsungAPI.tvKey.KEY_RIGHT:
+        let index = this.linkIndex + (keyCode === SamsungAPI.tvKey.KEY_LEFT ? -1 : 1);
 
-      if (index < 0) {
-        index = 0;
-      }
-      
-      this.linkIndex = index;
-    } else if (keyCode === SamsungAPI.tvKey.KEY_RIGHT) {
-      let index = linkIndex + 1;
+        if (index < 0) {
+          index = 0;
+        }
 
-      let max = this.routes.length - 1; 
-      if (index > max) {
-        index = max;
-      }
-
-      this.linkIndex = index;
-    } else if (keyCode === SamsungAPI.tvKey.KEY_TOOLS) {
-      this.mode = Mode.ListMode;
+        let max = this.routes.length - 1;
+        this.linkIndex = index > max ? max : index;
+        break;
     }
   }
 
   private handleListKeyboard(keyCode: number) {
-    let list = this.list;
-    if (keyCode === 13 || keyCode === SamsungAPI.tvKey.KEY_ENTER) {
-      list.openSelectedIndex();
-    } else if (keyCode === SamsungAPI.tvKey.KEY_DOWN) {
-      list.selectNext();
-    } else if (keyCode === SamsungAPI.tvKey.KEY_UP) {
-      list.selectPrevious();
-    } else if (keyCode === SamsungAPI.tvKey.KEY_TOOLS) {
-      this.mode = Mode.NavMode;
-    } else if (keyCode === SamsungAPI.tvKey.KEY_FF) { // fastforward
-      let index = (this.pageIndex || 0) + 1;
+    if (!SamsungAPI.isSamsungTv()) {
+      return;
+    }
 
-      if (index >= 0) {
-        this.list.loadPosts(this.activeRoute, index);
+    switch(keyCode) {
+      case SamsungAPI.tvKey.KEY_ENTER:
+        this.list.select();
+        break;
+      case SamsungAPI.tvKey.KEY_TOOLS:
+        this.mode = Mode.NavMode;
+        break;
+      case SamsungAPI.tvKey.KEY_RIGHT:
+        this.list.selectNext();
+        break;
+      case SamsungAPI.tvKey.KEY_LEFT:
+        this.list.selectPrevious();
+        break;
+      case SamsungAPI.tvKey.KEY_UP:
+        this.list.setRelativeIndex(-3)
+        break;
+      case SamsungAPI.tvKey.KEY_DOWN:
+        this.list.setRelativeIndex(3)
+        break;
+      case SamsungAPI.tvKey.KEY_FF:
+      case SamsungAPI.tvKey.KEY_RW:
+        let index = (this.pageIndex || 0) + (keyCode === SamsungAPI.tvKey.KEY_FF ? 1 : -1);
+        
+        if (index >= 0) {
+          this.list.loadPosts(this.activeRoute, index);
 
-        this.pageIndex = index; 
-      }
-    } else if (keyCode === SamsungAPI.tvKey.KEY_RW) { // rewind
-      let index = (this.pageIndex || 0) - 1;
-
-      if (index >= 0) {
-        this.list.loadPosts(this.activeRoute, index);
-
-        this.pageIndex = index; 
-      } 
+          this.pageIndex = index;
+        }
+        break;
     }
   }
 }

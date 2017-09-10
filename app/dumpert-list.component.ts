@@ -1,51 +1,61 @@
-import { Component, ViewChild, ViewChildren, Input, Output, HostListener, ElementRef, QueryList } from '@angular/core';
-
-import { DumpertModalComponent } from './dumpert-modal.component';
-import { DumpertPostComponent } from './dumpert-post.component';
+import { Component, ViewChild, ViewChildren, Input, Output, HostListener, ElementRef, EventEmitter } from '@angular/core';
 
 import { DumpertService, IPost } from './dumpert.service';
-
-declare var SamsungAPI: any;
 
 @Component({
   selector: 'dumpert-list',
   template: `
     <ul class="posts" *ngIf="posts">
-      <li class="post" *ngFor="let post of posts; let i = index">
-        <dumpert-post id="{{i}}" [post]="post" (click)="onClick(post, i)" [class]="postIndex === i ? 'selected' : ''"></dumpert-post>
+      <li id="post-{{i}}" class="post" *ngFor="let post of posts; let i = index" [class]="postIndex === i ? 'selected' : ''" (click)="onClick(post, i)" [style.width.px]="isSSTv ? 393 : ''">
+        <img class="thumbnail" src="{{post.thumbnail}}" alt="{{post.id}} thumbnail" />
+        <h3>{{post.title | truncate : 40 }}</h3>
+        <p [innerHTML]="post.description | truncate : 100 : null : 'middle'"></p>
       </li>
     </ul>
     <div id="error" *ngIf="error">
       <h1>{{error}}</h1>
     </div>
-    <dumpert-modal></dumpert-modal>
   `,
   styles: [`
     ul, ol {
       list-style: none;
-      margin: 0;
       padding: 0;
+      margin: 10px 0;
     }
 
-    ul.posts li:first-child {
-      margin-top: 10px;
-    }
     ul.posts li {
-      margin: 0 20px;
-    }
-
-    dumpert-post {
+      width: calc(100% / 3 - 20px - 15px);
+      height: 110px;
+      padding: 10px;
       background: #fff;
       border-bottom: 3px solid #1c3409;
-      display: table;
-      border-collapse: collapse;
-      width: 100%;
-      margin: 5px 0;
       box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+      margin: 5px 0 0 10px;
+      float: left;
     }
-    dumpert-post.selected {
+
+    ul.posts li:hover {
+      color: #4e4e4e;
+    }
+
+    ul.posts li.selected {
       border-color: #54b00f;
       color: #54b00f;
+    }
+
+    ul.posts li img {
+      float: left;
+      margin-right: 16px;
+      margin-top: 5px;
+    }
+
+    ul.posts li h3 {
+      margin-top: 0;
+      font-size: 20px
+    }
+    
+    ul.posts li p {
+      font-size: 12px
     }
 
     #error {
@@ -57,6 +67,17 @@ declare var SamsungAPI: any;
       vertical-align: middle;
     }
 
+    @media screen and (max-width: 640px) {
+      ul.posts li {
+        width: calc(100% - 20px - 15px);
+      }
+    }
+
+    @media only screen and (min-width : 640px) and (max-width : 1024px) {
+      ul.posts li {
+        width: calc(100% / 2 - 20px - 15px);
+      }
+    }
   `],
   providers: [DumpertService]
 })
@@ -68,15 +89,13 @@ export class DumpertListComponent {
 
   private error: any;
 
-  private inAnimation: boolean;
+  private isSSTv = SamsungAPI.isSamsungTv();
 
   @Input() route: string;
 
-  @ViewChild(DumpertModalComponent)
-  private readonly modal: DumpertModalComponent;
+  @Output() clickedPost = new EventEmitter<IPost>(true);
 
-  @ViewChildren(DumpertPostComponent) 
-  private readonly postComponents: QueryList<DumpertPostComponent>;
+  @Output() selectedElement = new EventEmitter<HTMLElement>(true);
 
   constructor(private dumpertService: DumpertService, private elRef: ElementRef) { }
 
@@ -85,139 +104,63 @@ export class DumpertListComponent {
   }
   
   public loadPosts(route: string, page?: number) {
-    this.postIndex = -1;
+    this.postIndex = 0;
 
     this.posts = null;
     this.error = null;
 
     this.dumpertService.getByRoute(route, page)
-      .then((data: IPost[]) => {
-        this.posts = data;
-        
-        this.selectFirst();
-      })
-      .catch((err: Error) => {
-        console.warn('catch', err);
-
-        this.error = err.message;
-      });
+      .then(posts => this.posts = posts)
+      .catch(err => this.error = err.message || err);
   }
 
-  private onClick(post: IPost, index?:number) {
-    if (index && (index >= 0 && index < this.postComponents.length)) {
-      this.postIndex = index;
-    }
+  private onClick(post: IPost, index?: number) {
+    this.setIndex(index);
 
-    if (this.modal !== undefined) {
-      this.modal.open(post);
-    }
+    this.select();
   }
-  
-  @HostListener(`window:${SamsungAPI.eventName}`, ['$event'])
-  public handleKeyboardEvent(event: any) {
-    if (!this.isModalActive()) {
+
+  public select() {
+    let post = this.posts[this.postIndex];
+    if (!post) {
       return;
     }
-    
-    this.openSelectedIndex();
-  }
 
-  public isModalActive(): boolean {
-    return this.modal && this.modal.isActive();
-  }
-
-  public selectFirst() {
-    this.inAnimation = false;
-
-    this.postIndex = 0;
-
-    document.body.scrollTop = 0;
+    this.clickedPost.emit(post);
   }
 
   public selectNext() {
-    if (this.inAnimation) {
-      return;
-    }
-    let index = this.postIndex + 1;
-
-    let max = this.postComponents.length;
-    if (index >= max) {
-      index = max - 1;
-    }
-    this.postIndex = index;
-    this.scrollToElement(index);
+    this.setRelativeIndex(1);
   }
 
   public selectPrevious() {
-    if (this.inAnimation) {
-      return;
-    }
-    let index = this.postIndex - 1;
+    this.setRelativeIndex(-1);
+  }
+  
+  public setRelativeIndex(next: number) {
+    this.setIndex(this.postIndex + next);
+  }
 
-    if (index < 0) {
-      index = 0
+  private setIndex(index: number) {
+    if (!index || index < 0) {
+      index = 0;
     }
+
+    let max = this.posts.length - 1;
+    if (index > max) {
+      index = max;
+    }
+
     this.postIndex = index;
-    this.scrollToElement(index);
+
+    this.selectedElement.emit(this.getPostElement(index));
   }
 
-  public openSelectedIndex() {
-    if (this.modal !== undefined) {
-      // let element = this.elRef.nativeElement.querySelector('ul > li > dumpert-post[id="2"]');
-      let that = this;
-      this.postComponents.forEach(function(item: DumpertPostComponent, index: number, list: DumpertPostComponent[]) {
-        if (that.postIndex === index) {
-          that.modal.open(item.post);
-          return;
-        }
-      });
-    }
+  public getIndex() {
+    return this.postIndex;
   }
 
-  private scrollToElement(index: number) {
-    let element = this.elRef.nativeElement.querySelector(`ul > li > dumpert-post[id="${index}"]`);
-
-    // TODO: fix smooth scroll for Samsung device
-    // this.inAnimation = true;
-    // smoothScrollTo(element.offsetTop, 600, index === 0 ? 10 : 5, () => {
-    //   this.inAnimation = false;
-
-    //   alert('done');
-    // });
-    hardScrollTo(element.offsetTop, index === 0 ? 10 : 5);
+  private getPostElement(index: number) {
+    return this.elRef.nativeElement.querySelector(`ul > li[id="post-${index}"]`) as HTMLElement;
   }
-}
-
-function smoothScrollTo(to: number, duration: number, add?: number, callback?: Function) {
-    if (duration <= 0) {
-      return;
-    }
-
-    var tickSpeed = 10;
-
-    var difference = (to - (add || 0)) - document.body.scrollTop;
-    var perTick = difference / duration * tickSpeed;
-
-    // TODO: enable scroll back up after reaching the bottom of page
-    if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight) {
-      if (callback) {
-        callback();
-      }
-      return;
-    }
-
-    setTimeout(function() {
-        document.body.scrollTop = document.body.scrollTop + perTick;
-        if (document.body.scrollTop === (to - add)) {
-          if (callback) {
-            callback();
-          }
-          return;
-        }
-        smoothScrollTo(to, duration - tickSpeed, add || 0, callback);
-    }, tickSpeed);
-}
-
-function hardScrollTo(to: number, add?: number) {
-    document.body.scrollTop = to - (add || 0)
 }

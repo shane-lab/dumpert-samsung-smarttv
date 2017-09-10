@@ -1,7 +1,3 @@
-var widgetAPI = typeof Common !== 'undefined' ? new Common.API.Widget() : { sendReadyEvent: function ( ) { } };
-var tvKey = typeof Common !== 'undefined' ? new Common.API.TVKeyValue() : {};
-var pluginAPI = typeof Common !== 'undefined' ? new Common.API.Plugin() : undefined;
-
 const DISABLED_KEYS = {
   8: 1,   // backspace
   9: 1,   // tab
@@ -18,72 +14,46 @@ const DISABLED_KEYS = {
 
 const EVENT_NAME = 'SamsungKeyPress';
 
-var SamsungAPI = new (function() {
+var SamsungAPI = new (function ($api) {
 
-  var isSST = false;
+  var isSST = isPresent($api);
 
-  var audioPlugin;
+  var macAddress;
 
-  this.tvKey = tvKey;
+  this.tvKey = {
+    KEY_RETURN: 27, // esc
+    KEY_ENTER: 13, // enter
+    KEY_INFO: 112, // F1
+    KEY_TOOLS: 113, // F2
+    KEY_0: 96, // arrow-left
+    KEY_LEFT: 37, // arrow-left
+    KEY_UP: 38, // arrow-up
+    KEY_RIGHT: 39, // arrow-right
+    KEY_DOWN: 40, // arrow-down
+    KEY_FF: 76, // L
+    KEY_RW: 74, // J
+  };
 
   this.eventName = EVENT_NAME;
 
-  this.onLoad = function() {
-    widgetAPI.sendReadyEvent();
-    
-    if (navigator.userAgent.search(/Maple/) > -1) {
-      isSST = true;
-      
-      // hack to disable scrolling on SST
-      var style = 'html, body { overflow: hidden; }';
-
-      var styletag = document.createElement('style');
-      styletag.type = 'text/css';
-      if (styletag.styleSheet) {
-        styletag.cssText = style;
-      } else {
-        styletag.appendChild(document.createTextNode(style));
-      }
-
-      var head = document.head || document.getElementsByTagName('head')[0];
-
-      head.appendChild(styletag);
-
-      window.onShow = function() {
-        //var pluginAPI = document.getElementById('pluginObjectTVMW');
-        if (pluginAPI) {
-          var nnaviPlugin = document.getElementById('pluginObjectNNavi');
-          if (nnaviPlugin) {
-            pluginAPI.SetBannerState(1);
-            nnaviPlugin.SetBannerState(1);
-            pluginAPI.unregistKey(tvKey.KEY_VOL_UP);
-            pluginAPI.unregistKey(tvKey.KEY_VOL_DOWN);
-            pluginAPI.unregistKey(tvKey.KEY_MUTE);
-          }
-
-          audioPlugin = document.getElementById('pluginObjectAudio');
-        }
-      }
-    }
-  };
-
-  this.isSamsungSmartTV = function() {
-    return isSST;
-  }
-
-  this.onUnload = function() {
-    // anything to unload ?
-  };
-
-  this.onKeyDown = function() {
+  this.onLoad = function () {
     if (!isSST) {
       return;
     }
 
+    (new $api.Widget()).sendReadyEvent();
+
+    this.tvKey = new $api.TVKeyValue();
+  };
+
+  this.isSamsungTv = function() {
+    return isSST;
+  }
+
+  this.onKeyDown = function () {
     var keyCode = event.keyCode;
 
     var evt;
-
     try {
       evt = new CustomEvent(EVENT_NAME, {
         detail: {
@@ -104,14 +74,8 @@ var SamsungAPI = new (function() {
     if (evt) {
       window.dispatchEvent(evt);
     }
-
-    if (keyCode === tvKey.KEY_VOL_UP) {
-      setRelativeAudio(1);
-    } else if (keyCode === tvKey.KEY_VOL_DOWN) {
-      setRelativeAudio(-1);
-    }
     
-    if ((keyCode === tvKey.KEY_RETURN) || DISABLED_KEYS[keyCode]) {
+    if ((keyCode === this.tvKey.KEY_RETURN || keyCode === this.tvKey.KEY_INFO) || DISABLED_KEYS[keyCode]) {
       preventDefault(event);
 
       return false;
@@ -127,15 +91,8 @@ var SamsungAPI = new (function() {
       e.returnValue = false;
     }
   }
+})(isPresent(window.Common) ? Common.API : null);
 
-  function setRelativeAudio(delta) {
-    if (audioPlugin) {
-      var volume = audioPlugin.GetVolume();
-
-      var newVolume = volume + delta;
-      if (newVolume >= 0) {
-        audioPlugin.SetVolumeWithKey(newVolume);
-      }
-    }
-  }
-})();
+function isPresent(obj) {
+  return obj !== undefined && obj !== null;
+}
