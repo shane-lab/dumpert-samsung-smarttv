@@ -29,6 +29,7 @@
       'angular2-in-memory-web-api': 'npm:angular2-in-memory-web-api',
       'text': 'plugin-text.js',
       'angular2-truncate': 'npm:angular2-truncate',
+      'ng2-img-fallback': 'npm:ng2-img-fallback',
 
       //shims
       'core-js-shim':'npm:core-js/client/shim.min.js',
@@ -49,6 +50,10 @@
         defaultExtension: 'js'
       },
       'angular2-truncate': {
+        main: './dist/index.js',
+        defaultExtension: 'js'
+      },
+      'ng2-img-fallback': {
         main: './dist/index.js',
         defaultExtension: 'js'
       }

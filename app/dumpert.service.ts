@@ -28,6 +28,7 @@ export interface IMediaVariant {
 export interface IMedia {
   mediaType: string;
   variants: IMediaVariant[];
+  duration?: number;
 }
 
 export interface IPost {
@@ -42,19 +43,21 @@ export interface IPost {
   media: IMedia[];
 }
 
+export const ROUTES = {    
+  LATEST: 'latest',
+  TOP: 'top5/dag/', // rather top25
+  POPULAR: 'hotshiz', // OK joris..
+  DTV: 'dumperttv',
+  CLASSICS: 'classics'
+}
+
+type DumpertRoute = {[K in keyof typeof ROUTES]: typeof ROUTES[K]};
+
 @Injectable()
 export class DumpertService {
 
   // used to bypass cloudflare
   static URI: string = 'https://dumpert.shanelab.nl/api.php'; // 'http://www.dumpert.nl/mobile_api/json';
-
-  static ROUTES = {
-    LATEST: 'latest',
-    TOP: 'top5/dag/', // rather top25
-    POPULAR: 'hotshiz', // OK joris..
-    DTV: 'dumperttv',
-    CLASSICS: 'classics'
-  };
 
   constructor(private http: Http) { }
 
@@ -62,91 +65,73 @@ export class DumpertService {
    * getLatestPosts
    */
   public getLatestPosts(page?: number): Promise<IPost[]> {
-    return this.requestQ(DumpertService.ROUTES.LATEST, page);
+    return this.requestQ(ROUTES.LATEST, page);
   }
 
   /**
    * getTop5
    */
   public getTop(page: number): Promise<IPost[]> {
-    return this.requestQ(DumpertService.ROUTES.TOP, page);
+    return this.requestQ(ROUTES.TOP, page);
   }
 
   /**
    * getPopularToday
    */
   public getPopularToday(): Promise<IPost[]> {
-    return this.requestQ(DumpertService.ROUTES.POPULAR);
+    return this.requestQ(ROUTES.POPULAR);
   }
 
   /**
    * getDumpertTV
    */
   public getDumpertTV(): Promise<IPost[]> {
-    return this.requestQ(DumpertService.ROUTES.DTV);
+    return this.requestQ(ROUTES.DTV);
   }
 
   /**
    * getClassics
    */
   public getClassics(page?: number): Promise<IPost[]> {
-    return this.requestQ(DumpertService.ROUTES.CLASSICS, page);
+    return this.requestQ(ROUTES.CLASSICS, page);
   }
 
   /**
    * getByRoute
    */
   public getByRoute(route: string, page?: number): Promise<IPost[]> {
-    let isTopRequest = false;
     return new Promise((resolve, reject) => {
-      let keys = Object.keys(DumpertService.ROUTES);
+      if (!route) {
+        return reject(new Error(`Request error, the given route '${route}' does not exist`));
+      }
 
-      let value: string = null;
-      for (let i = 0; i < keys.length; i++) {
-        let key = keys[i];
-        
-        let tempValue = DumpertService.ROUTES[key];
-        if (key.toLowerCase() === route.toLowerCase() ||
-            (tempValue && tempValue.toLowerCase() === route.toLowerCase())) {
-          value = tempValue;
-          isTopRequest = value === DumpertService.ROUTES.TOP;
-          break;
-        }
-      }
-      if (value) {
-        let data = !isTopRequest ? page : new Date(Date.now() - ((page || 0) * (24*60*60*1000))).toISOString().slice(0, 10);
-        resolve(this.requestQ(value, data));
-      } else {
-        reject(new Error(`Request error, the given route '${route}' does not exist`));
-      }
+      route = (route in ROUTES ? ROUTES[route] : route || '').toLowerCase();
+
+      let data = ROUTES.TOP.toLowerCase() === route ? new Date(Date.now() - ((page || 0) * (24*60*60*1000))).toISOString().slice(0, 10) : page;
+      resolve(this.requestQ(route, data));
     });
   }
 
   private requestQ(route: string, page?: number | string): Promise<IPost[]> {
-    let endpoint = `${DumpertService.URI}?route=${route.toLowerCase()}&page=${(page !== undefined) ? page : ''}`;
+    const endpoint = `${DumpertService.URI}?route=${route.toLowerCase()}&page=${(page !== undefined) ? page : ''}`;
 
     return new Promise((resolve, reject) => {
       this.http.get(endpoint)
         .map((res: Response) => res.json())
-        .catch((error: any) => Observable.throw(error || error.json().error || 'Server error'))
-        .subscribe(response => {
-          if (response !== undefined && response != null) {
-            if (response.success === true) {
-              let posts: IPost[] = [];
-
-              let items: any[] = response.items || [];
-              for (let i = 0; i < items.length; i++) {
-                let item = items[i];
-
-                posts.push(this.constructPost(item));
-              }
-              resolve(posts);
-            } else {
-              reject(new Error(response.errors ? response.errors[0] : 'Out of items'));
-            }
-          } else {
-            reject(new Error('Server error while resolving, possible outdated api result'));
+        .catch(error => Observable.throw((error && 'json' in error) ? error.json().error : error || 'Server error'))
+        .subscribe((response: {errors?: string[], items: {}[]}) => {
+          if (!response) {
+            return reject(new Error('Server error while resolving, possible outdated api result'));
           }
+          if (response.errors) {
+            return reject(new Error(response.errors ? response.errors[0] : 'Out of items'));
+          }
+
+          let posts: IPost[] = [];
+          for (let item of response.items) {
+            posts.push(this.constructPost(item));
+          }
+          resolve(posts.filter(post => !!post && post.media.length > 0));
         }, error => {
           reject(error || new Error('Server error, possible outdated api endpoint'));
         });
@@ -154,8 +139,8 @@ export class DumpertService {
   }
 
   private constructPost(item: object): IPost {
-    let stats: any = item['stats'];
-    let media: any = item['media'];
+    const stats: any = item['stats'] || {};
+    const media: any = item['media'] || [];
 
     let post: IPost = {
       id: item['id'],
@@ -163,25 +148,45 @@ export class DumpertService {
       thumbnail: item['thumbnail'],
       still: item['still'],
       description: item['description'],
-      date: item['date'],
+      date: this.parseDateTime(item['date']),
       tags: item['tags'],
       stats: {
-        views: stats.views_total,
-        viewsToday: stats.views_today,
-        kudos: stats.kudos_total,
-        kudosToday: stats.kudos_today
+        views: stats.views_total || 0,
+        viewsToday: stats.views_today || 0,
+        kudos: stats.kudos_total || 0,
+        kudosToday: stats.kudos_today || 0
       },
       media: []
     };
 
-    for (let j = 0; j < media.length; j++) {
-      let mediaItem: any = media[j];
-      post.media.push({
+    for (let mediaItem of media) {
+      let postMedia: IMedia = {
         mediaType: mediaItem.mediatype,
-        variants: mediaItem.variants
-      });
+        variants: mediaItem.variants,
+      };
+      if ('duration' in mediaItem) {
+        postMedia.duration = mediaItem.duration;
+      }
+      if (postMedia.variants && postMedia.variants.length > 0) {
+        // fixes undefined or filters humanfactor for the mediatype selector.
+        if (!postMedia.mediaType || postMedia.mediaType.trim().length <= 0) {
+          postMedia.mediaType = MediaType[postMedia.variants[0].uri.indexOf('mp4') ? MediaType.VIDEO : MediaType.TEMPLATE];
+        }
+        
+        post.media.push(postMedia);
+      }
     }
 
-    return post;
+    return post.media.length ? post : null;
+  }
+
+  private parseDateTime(dateTime: string): string {
+    let dateSegments = dateTime.substr(0, 10).split('-');
+
+    let date = dateSegments.reduceRight((a, b, i) => `${a}/${b}`);
+
+    let time = dateTime.substr(11, dateTime.length).split('+')[0];
+
+    return `${date} - ${time}`
   }
 }

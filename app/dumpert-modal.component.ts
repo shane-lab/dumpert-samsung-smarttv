@@ -1,4 +1,4 @@
-import { Component, ViewChild, ElementRef, Input, HostListener } from '@angular/core';
+import { Component, ViewChild, OnInit, ElementRef, Input, HostListener } from '@angular/core';
 
 import { DumpertMediaComponent } from './dumpert-media.component';
 
@@ -10,19 +10,20 @@ import { IPost, IMedia } from './dumpert.service';
     <div *ngIf="post" class="modal">
       <div #sidebar id="sidebar">
         <header>
-          <span (click)="close()" id="close" [innerHTML]="closeSign"></span>
-          <p class="title">{{post.title}}</p>
+          <span (click)="close()" id="close" [innerHTML]="'&#935;'"></span>
+          <p class="title">{{post.title}} <span *ngIf="post.media.length > 1">({{mediaIndex + 1}}/{{post.media.length}})</span></p>
         </header>
         <details id="stats" *ngIf="post.stats" open>
-          <span class="extra" style="margin-top:4px;">{{getDateTime()}}</span>
-          <p>Views: {{post.stats.views}}<span class="extra">(today: {{post.stats.viewsToday}})</span></p>
-          <p>Kudos: {{post.stats.kudos}}<span class="extra">(today: {{post.stats.kudosToday}})</span></p>
+          <span class="extra" style="margin-top:6px;">uploaded: <span>{{post.date}}</span></span>
+          <span *ngIf="duration" class="extra" style="margin-top:6px;">duration: <span>{{getFormattedDuration(duration)}}</span></span>
+          <p>Views: {{post.stats.views}}<span class="extra">(today: <span>{{post.stats.viewsToday}}</span>)</span></p>
+          <p>Kudos: {{post.stats.kudos}}<span class="extra">(today: <span>{{post.stats.kudosToday}}</span>)</span></p>
         </details>
-        <article>{{post.description}}</article>
+        <article [innerHTML]="post.description | mention"></article>
         <footer>{{post.tags}}</footer>
       </div>
       <div id="content">
-        <dumpert-media [media]="getMedia()"></dumpert-media>
+        <dumpert-media [media]="getMedia(mediaIndex)"></dumpert-media>
       </div>
     </div>
   `,
@@ -66,9 +67,20 @@ import { IPost, IMedia } from './dumpert.service';
     #sidebar header p.title {
       margin-top: 0;
     }
+    #sidebar header p.title span {
+      display: initial;
+      padding: 0;
+      margin: 0;
+      color: #a4a4a4;
+    }
     #sidebar details .extra {
       color: #888;
       font-size: 12px;
+    }
+    #sidebar details .extra > span {
+      color: #bbb;
+      display: initial;
+      padding: 0;
     }
     #sidebar footer {
       position: absolute;
@@ -89,6 +101,10 @@ import { IPost, IMedia } from './dumpert.service';
       text-overflow: ellipsis;
       /*white-space: nowrap;*/
     }
+    #sidebar article > a {
+      color: #aaa !important;
+      background: #ccc;
+    }
     
     #content {
       float: none;
@@ -102,9 +118,9 @@ export class DumpertModalComponent {
 
   private post: IPost;
 
-  private mediaIndex: number = 0;
+  private duration: number;
 
-  private closeSign: string = SamsungAPI.isSamsungTv() ? '&#8634;' : '&#935;'
+  private mediaIndex: number = 0;
 
   @ViewChild(DumpertMediaComponent)
   public readonly media: DumpertMediaComponent;
@@ -125,33 +141,30 @@ export class DumpertModalComponent {
   }
 
   public close(): void {
+    this.duration = null;
     this.post = null;
   }
 
-  private getDateTime(): string {
-    if (!this.post) {
-      return null;
-    }
-
-    let dateSegments = this.post.date.substr(0, 10).split('-');
-
-    let date = dateSegments.reduceRight((a, b, i) => `${a}/${b}`);
-
-    let time = this.post.date.substr(11, this.post.date.length).split('+')[0];
-
-    return `${date} - ${time}`
-  }
-
-  private getMedia(): IMedia {
+  private getMedia(index?: number): IMedia {
     if (!this.hasPost()) {
       this.close();
 
       return null;
     }
 
-    let index = this.mediaIndex = (this.mediaIndex || 0);
+    this.mediaIndex = (index || 0);
 
-    return this.post.media[index];
+    let media = this.post.media[index];
+    
+    this.duration = media.duration;
+
+    return media;
+  }
+
+  private getFormattedDuration(seconds: number) {
+    let date = new Date(1970,0,1);
+    date.setSeconds(seconds);
+    return date.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, "$1") 
   }
 
   public onKeyDown(keyCode: number) {
@@ -171,6 +184,14 @@ export class DumpertModalComponent {
         }
         break;
       }
+      case SamsungAPI.tvKey.KEY_UP:
+      case SamsungAPI.tvKey.KEY_DOWN:
+        let index = this.mediaIndex + (keyCode === SamsungAPI.tvKey.KEY_UP ? -1 : 1 );
+
+        if (index >= 0 && index < this.post.media.length) {
+          this.mediaIndex = index;
+        }
+        break;
     }
 
     // this.media.onKeyDown(keyCode);

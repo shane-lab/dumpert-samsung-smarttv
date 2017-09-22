@@ -1,4 +1,4 @@
-import { Component, ViewChild, Input, AfterViewInit, ElementRef, HostListener } from '@angular/core';
+import { Component, ViewChild, Input, ElementRef, HostListener, SimpleChanges } from '@angular/core';
 
 import { IMedia, IMediaVariant, MediaType } from './dumpert.service';
 
@@ -63,7 +63,7 @@ import { IMedia, IMediaVariant, MediaType } from './dumpert.service';
     }   
   `]
 })
-export class DumpertMediaComponent implements AfterViewInit {
+export class DumpertMediaComponent {
   
   // secure unique id with datetime hash
   private static MEDIA_ELEMENT_ID = `${new Date().getTime()}_media`;
@@ -73,7 +73,7 @@ export class DumpertMediaComponent implements AfterViewInit {
   @ViewChild('mediaContainer')
   private readonly mediaContainer: ElementRef;
 
-  ngAfterViewInit() {
+  ngOnChanges(changes: SimpleChanges) {
     if (!this.media) {
       return;
     }
@@ -84,16 +84,15 @@ export class DumpertMediaComponent implements AfterViewInit {
       return;
     }
 
-    let innerHTML: string;
-
     if (this.isVideo()) {
       let uri = this.getMediaVariant().uri;
       if (this.isYouTube(uri)) {
         let key = uri.split(':')[1];
-        innerHTML = `<object id="${DumpertMediaComponent.MEDIA_ELEMENT_ID}" data="${this.embedAsYouTubeURI(key)}" controls="false">video playback is not supported</object>`;
+        parent.innerHTML = `<object id="${DumpertMediaComponent.MEDIA_ELEMENT_ID}" data="${this.embedAsYouTubeURI(key)}" controls="false">video playback is not supported</object>`;
       } else {
         // using either html5 video, flash or the native swfplayer to play video feed 
-        innerHTML = `
+        // uri = 'https://www.w3schools.com/tags/mov_bbb.mp4';
+        parent.innerHTML = `
           <video id="${DumpertMediaComponent.MEDIA_ELEMENT_ID}" autoplay><source src="${uri}" type="video/mp4"><source src="${uri}" type="video/mp4">
             <object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" codebase="http://fpdownload.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=8,0,0,0">
               <param name="SRC" value="player.swf?file=${uri}">
@@ -104,28 +103,22 @@ export class DumpertMediaComponent implements AfterViewInit {
         `;
       }
     } else {
-      innerHTML = `<img id="${DumpertMediaComponent.MEDIA_ELEMENT_ID}" src="${this.getMediaVariant().uri}" />`;
+      parent.innerHTML = `<img id="${DumpertMediaComponent.MEDIA_ELEMENT_ID}" src="${this.getMediaVariant().uri}" />`;
     }
     
     let child = document.getElementById(DumpertMediaComponent.MEDIA_ELEMENT_ID);
+    if (!child) {
+      return;
+    }
     child.style.width = '100%';
     child.style.height = '100%';
     child.style.margin = 'auto';
     child.style.padding = '0';
     if (child instanceof HTMLImageElement) {
-      child.style.width = 'initial';
+      child.style.width /*= child.style.height*/ ='initial';
+      child.style.maxWidth = child.style.maxHeight = '100%';
       child.style.display = 'block';
-
-      let img = new Image();
-
-      img.onload = function() {
-        if (img.width > img.height) {
-          child.style.width = '100%';
-          child.style.height = 'initial';
-        }
-      };
-      img.src = child.src;
-    }
+    } 
   }
 
   public getMediaVariant(): IMediaVariant {

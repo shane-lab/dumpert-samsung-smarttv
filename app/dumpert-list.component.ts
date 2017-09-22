@@ -6,10 +6,11 @@ import { DumpertService, IPost } from './dumpert.service';
   selector: 'dumpert-list',
   template: `
     <ul class="posts" *ngIf="posts">
-      <li id="post-{{i}}" class="post" *ngFor="let post of posts; let i = index" [class]="postIndex === i ? 'selected' : ''" (click)="onClick(post, i)" [style.width.px]="isSSTv ? 393 : ''">
-        <img class="thumbnail" src="{{post.thumbnail}}" alt="{{post.id}} thumbnail" />
+      <li id="post-{{i}}" class="post" *ngFor="let post of posts; let i = index" [ngClass]="[post.media[0].mediaType | lowercase, postIndex === i ? 'selected' : '']" (click)="onClick(post, i)" [style.width.px]="fixedPostWidth">
+        <img class="thumbnail" src="{{post.thumbnail}}" [src-fallback]="'assets/img/default-thumbnail.png'" alt="{{post.id}} thumbnail" />
         <h3>{{post.title | truncate : 40 }}</h3>
-        <p [innerHTML]="post.description | truncate : 100 : null : 'middle'"></p>
+        <p class="info">{{post.date}}</p>
+        <p [innerHTML]="post.description | htmlTruncate : 100 : null : 'middle'"></p>
       </li>
     </ul>
     <div id="error" *ngIf="error">
@@ -36,6 +37,7 @@ import { DumpertService, IPost } from './dumpert.service';
 
     ul.posts li:hover {
       color: #4e4e4e;
+      cursor: pointer;
     }
 
     ul.posts li.selected {
@@ -43,19 +45,50 @@ import { DumpertService, IPost } from './dumpert.service';
       color: #54b00f;
     }
 
+    ul.posts li:before {
+      content: '';
+      position: absolute;
+      display: block;
+      margin-top: 92px;
+      margin-left: 92px;
+      width: 20px;
+      height: 20px;
+      opacity: 0.8;
+      background-image: url(http://gscdn.nl/dump/images/allsprites-s6c30d074dd.png);
+      background-repeat: no-repeat;
+
+      /** fallback for undefined mediatype */
+      background-position: -129px -34px;
+    }
+
+    ul.posts li.img:before, ul.posts li.foto:before {
+      background-position: -129px -34px;
+    }
+
+    ul.posts li.video:before {
+      background-position: -184px -38px;
+    }
+
     ul.posts li img {
       float: left;
       margin-right: 16px;
       margin-top: 5px;
+      box-shadow: 1px 2px 3px #313131;
     }
 
     ul.posts li h3 {
       margin-top: 0;
+      margin-bottom: 0;
       font-size: 20px
     }
     
     ul.posts li p {
       font-size: 12px
+    }
+
+    ul.posts li p.info {
+      color: #888;
+      margin-top: 2px;
     }
 
     #error {
@@ -89,9 +122,9 @@ export class DumpertListComponent {
 
   private error: any;
 
-  private isSSTv = SamsungAPI.isSamsungTv();
-
   @Input() route: string;
+
+  @Input() fixedPostWidth: number;
 
   @Output() clickedPost = new EventEmitter<IPost>(true);
 

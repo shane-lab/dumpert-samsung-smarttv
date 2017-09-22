@@ -4,7 +4,7 @@ import { DumpertListComponent } from './dumpert-list.component';
 
 import { DumpertModalComponent } from './dumpert-modal.component';
 
-import { DumpertService, IPost } from './dumpert.service';
+import { DumpertService, ROUTES, IPost } from './dumpert.service';
 
 enum Mode {
   NavMode = 0,
@@ -21,12 +21,12 @@ enum ColorTheme {
   template: `
     <nav [class]="mode === 0 ? 'selected' : ''">
       <ul>
-        <li *ngFor="let route of routes; let i=index" [ngClass]="[(activeRoute.toLowerCase() === route.toLowerCase() ? 'active' : ''), (mode === 0 && linkIndex === i ? 'selected' : '')]">
-            <span (click)="onRouteClick(route)">{{route}}</span><span *ngIf="activeRoute.toLowerCase() === route.toLowerCase()" style="color: #FF9800;">#{{(pageIndex || 0) + 1}}</span>
+        <li *ngFor="let route of routes; let i=index" [ngClass]="[(isRouteActive(route) ? 'active' : ''), (mode === 0 && linkIndex === i ? 'selected' : '')]">
+            <span (click)="onRouteClick(route)">{{route}}</span><span *ngIf="isRouteActive(route)" style="color: #FF9800;">#{{(pageIndex || 0) + 1}}</span>
         </li>
       </ul>
     </nav>
-    <dumpert-list [route]="activeRoute" [class]="mode === 1 ? 'selected' : ''"></dumpert-list>
+    <dumpert-list [route]="activeRoute" [fixedPostWidth]="isSSTv ? 393 : null" [class]="mode === 1 ? 'selected' : ''"></dumpert-list>
     <dumpert-modal></dumpert-modal>
   `,
   styles: [`
@@ -40,7 +40,7 @@ enum ColorTheme {
       box-shadow: 0 8px 6px -6px #999;
       z-index: 1;
     }
-    nav.selected {
+    nav:hover, nav.selected {
       background-color: #111;
     }
     nav::before {
@@ -96,15 +96,17 @@ enum ColorTheme {
 })
 export class AppComponent {
 
-  private activeRoute: string = DumpertService.ROUTES.LATEST;
+  private activeRoute: string = ROUTES.LATEST;
 
-  private routes: string[] = Object.keys(DumpertService.ROUTES);
+  private routes: string[] = Object.keys(ROUTES);
 
   private linkIndex: number = 0;
 
   private pageIndex: number;
 
   private mode: Mode = Mode.ListMode;
+
+  private isSSTv = SamsungAPI.isSamsungTv();
 
   private theme: ColorTheme = ColorTheme.Classic;
 
@@ -129,6 +131,10 @@ export class AppComponent {
     this.pageIndex = 0;
 
     this.list.loadPosts(route, this.pageIndex);
+  }
+
+  private isRouteActive(route: string) {
+    return this.activeRoute && route.toLocaleLowerCase() === this.activeRoute.toLocaleLowerCase();
   }
 
   private openModal(post: IPost) {
@@ -198,9 +204,9 @@ export class AppComponent {
   }
 
   private handleListKeyboard(keyCode: number) {
-    if (!SamsungAPI.isSamsungTv()) {
-      return;
-    }
+    // if (!SamsungAPI.isSamsungTv()) {
+    //   return;
+    // }
 
     switch(keyCode) {
       case SamsungAPI.tvKey.KEY_ENTER:

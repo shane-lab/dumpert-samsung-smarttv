@@ -11,3 +11,5 @@ app/**/*.js
 app/**/*.map
 ./app/**/*.map
 *.js.map
+.vscode
+./.vscode
