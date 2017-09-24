@@ -1,4 +1,4 @@
-import { Component, ViewChild, OnInit, ElementRef, Input, HostListener } from '@angular/core';
+import { Component, ViewChild, OnChanges, ElementRef, Input, HostListener, SimpleChanges } from '@angular/core';
 
 import { DumpertMediaComponent } from './dumpert-media.component';
 
@@ -114,7 +114,7 @@ import { IPost, IMedia } from './dumpert.service';
     }
   `]
 })
-export class DumpertModalComponent {
+export class DumpertModalComponent implements OnChanges {
 
   private post: IPost;
 
@@ -127,6 +127,12 @@ export class DumpertModalComponent {
 
   @ViewChild('sidebar')
   private readonly sidebarEl: ElementRef;
+  
+  ngOnChanges(changes: SimpleChanges) {
+    if (!this.hasPost()) {
+      this.close();
+    }
+  }
   
   public hasPost(): boolean {
     return !!this.post;
@@ -141,6 +147,7 @@ export class DumpertModalComponent {
   }
 
   public close(): void {
+    this.mediaIndex = 0;
     this.duration = null;
     this.post = null;
   }
@@ -154,7 +161,12 @@ export class DumpertModalComponent {
 
     this.mediaIndex = (index || 0);
 
-    let media = this.post.media[index];
+    let media = this.post.media[this.mediaIndex];
+    if (!media) {
+      this.close();
+
+      return null;
+    }
     
     this.duration = media.duration;
 
@@ -193,7 +205,5 @@ export class DumpertModalComponent {
         }
         break;
     }
-
-    // this.media.onKeyDown(keyCode);
   }
 }
