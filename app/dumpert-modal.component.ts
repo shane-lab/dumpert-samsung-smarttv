@@ -204,6 +204,7 @@ export class DumpertModalComponent implements OnChanges {
           this.mediaIndex = index;
         }
         break;
+      default: this.media.onKeyDown(keyCode);
     }
   }
 }

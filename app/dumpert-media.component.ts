@@ -5,61 +5,70 @@ import { IMedia, IMediaVariant, MediaType } from './dumpert.service';
 @Component({
   selector: 'dumpert-media',
   template: `
-    <div #mediaContainer class="container">
+    <div #mediaContainer class="container" [ngClass]="{'replay': videoElement && showReplay}">
       <!-- Samsung SmartTV does not support invoking video/object media using Angular databinding, using the AfterViewInit interface instead -->
-      <div class="spinner">
-        <div class="bounce1"></div>
-        <div class="bounce2"></div>
-        <div class="bounce3"></div>
-      </div>
     </div>
   `,
   styles: [`
+    :host {
+      padding: 0;
+      margin: 0;
+      width: 100%;
+      height: 100%;
+
+      display: block;
+    }
+
     .container {
       padding: 0;
       margin: 0 auto;
       width: 100%;
       height: 100%;
     }
-    
-    .spinner {
-      margin: 330px auto 0;
-      width: 240px;
+
+    .replay::before {
+      content: '';
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: #f7a846;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      text-indent: 40px;
+      line-height: 20px;
+      border: 2px solid #222;
+      text-shadow: black 1px 2px 3px;
+      z-index: 1;
+    }
+    .replay::after {
+      content: "replay";
+
+      position: absolute;
+      top: 0;
+      left: 0;
+      /*bottom: 0;
+      right: 0;
+      margin: 316px auto 0;*/
+      height: 40px;
+      line-height: 40px;
+      width: 160px;
+
+      color: #fff;
       text-align: center;
-    }
-    .spinner > div {
-      width: 56px;
-      height: 56px;
-      background-color: #FFFFFF;
-      
-      border-radius: 100%;
-      display: inline-block;
-      -webkit-animation: bouncedelay 1.4s infinite ease-in-out;
-      animation: bouncedelay 1.4s infinite ease-in-out;
-      /* Prevent first frame from flickering when animation starts */
-      -webkit-animation-fill-mode: both;
-      animation-fill-mode: both;
-    }
-    .spinner .bounce1 {
-      -webkit-animation-delay: -0.32s;
-      animation-delay: -0.32s;
-    }
-    .spinner .bounce2 {
-      -webkit-animation-delay: -0.16s;
-      animation-delay: -0.16s;
-    }
-    @-webkit-keyframes bouncedelay {
-      0%, 80%, 100% { -webkit-transform: scale(0.0) }
-      40% { -webkit-transform: scale(1.0) }
-    }
-    @keyframes bouncedelay {
-      0%, 80%, 100% { 
-        transform: scale(0.0);
-        -webkit-transform: scale(0.0);
-      } 40% { 
-        transform: scale(1.0);
-        -webkit-transform: scale(1.0);
-      }
+
+      font-family: jw-icons;
+      font-style: normal;
+      font-weight: bold;
+      text-transform: none;
+      background-color: transparent;
+      font-variant: normal;
+      -webkit-font-smoothing: antialiased;
+
+      background: #050708;
+      border: 0;
+      border-radius: 3px;
+      box-shadow: 0.1em 0 1em 0em black;
     }   
   `]
 })
@@ -72,6 +81,10 @@ export class DumpertMediaComponent {
 
   @ViewChild('mediaContainer')
   private readonly mediaContainer: ElementRef;
+
+  private videoElement: ElementRef;
+
+  private showReplay = false;
 
   ngOnChanges(changes: SimpleChanges) {
     if (!this.media) {
@@ -96,7 +109,7 @@ export class DumpertMediaComponent {
           <video id="${DumpertMediaComponent.MEDIA_ELEMENT_ID}" autoplay><source src="${uri}" type="video/mp4"><source src="${uri}" type="video/mp4">
             <object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" codebase="http://fpdownload.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=8,0,0,0">
               <param name="SRC" value="player.swf?file=${uri}">
-              <embed src="player.swf?file=${uri}"></embed>
+              <embed src="player.swf?file=${uri}" allowscriptaccess="always"></embed>
               <p>Please update your browser or install Flash</p>
             </object>
           </video>
@@ -118,7 +131,13 @@ export class DumpertMediaComponent {
       child.style.width /*= child.style.height*/ ='initial';
       child.style.maxWidth = child.style.maxHeight = '100%';
       child.style.display = 'block';
-    } 
+    }
+    else if (child instanceof HTMLVideoElement) {
+      this.videoElement = new ElementRef(child);
+
+      child.onplay = () => (this.showReplay = false, child.style.opacity = '1');
+      child.onended = () => (this.showReplay = true, child.style.opacity = '0.3');
+    }
   }
 
   public getMediaVariant(): IMediaVariant {
@@ -142,11 +161,35 @@ export class DumpertMediaComponent {
       return null;
     }
     
-    return `https://www.youtube.com/embed/${key}?autoplay=true`; 
+    return `https://www.youtube.com/embed/${key}?autoplay=true&rel=0`; 
   }
 
   private isBetterQuality(a: string, b: string): boolean {
     let c = !1;
     return a !== b && (('mobile' === a && 'tablet' === b || 'mobile' === a && '720p' === b || 'tablet' === a && '720p' === b) && (c = !0), c);
+  }
+
+  public onKeyDown(keyCode: number) {
+    if (!this.videoElement) {
+      return;
+    }
+
+    const video = this.videoElement.nativeElement as HTMLVideoElement;
+
+    switch(keyCode) {
+      case SamsungAPI.tvKey.KEY_ENTER:
+        if (video.paused) {
+          video.play();
+        } else {
+          video.pause();
+        }
+        video.controls = video.paused;
+        video.hideFocus = !video.controls;
+        break;
+      case SamsungAPI.tvKey.KEY_0:
+        video.pause();
+        video.currentTime = 0;
+        video.play().then(() => (video.controls = false, video.hideFocus = true));
+    }
   }
 }

@@ -175,6 +175,10 @@ export class DumpertListComponent {
   }
 
   private setIndex(index: number) {
+    if (!this.posts) {
+      return;
+    }
+    
     if (!index || index < 0) {
       index = 0;
     }
