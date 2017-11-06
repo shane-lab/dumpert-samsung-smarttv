@@ -41,6 +41,21 @@ var SamsungAPI = new (function ($api) {
       return;
     }
 
+    // hack to disable scrolling on SST
+    var style = 'html, body { overflow: hidden; }';
+    
+    var styletag = document.createElement('style');
+    styletag.type = 'text/css';
+    if (styletag.styleSheet) {
+      styletag.cssText = style;
+    } else {
+      styletag.appendChild(document.createTextNode(style));
+    }
+    
+    var head = document.head || document.getElementsByTagName('head')[0];
+    
+    head.appendChild(styletag);
+
     (new $api.Widget()).sendReadyEvent();
 
     this.tvKey = new $api.TVKeyValue();
