@@ -47,9 +47,6 @@ import { IMedia, IMediaVariant, MediaType } from './dumpert.service';
       position: absolute;
       top: 0;
       left: 0;
-      /*bottom: 0;
-      right: 0;
-      margin: 316px auto 0;*/
       height: 40px;
       line-height: 40px;
       width: 160px;
@@ -57,7 +54,6 @@ import { IMedia, IMediaVariant, MediaType } from './dumpert.service';
       color: #fff;
       text-align: center;
 
-      font-family: jw-icons;
       font-style: normal;
       font-weight: bold;
       text-transform: none;
@@ -69,6 +65,7 @@ import { IMedia, IMediaVariant, MediaType } from './dumpert.service';
       border: 0;
       border-radius: 3px;
       box-shadow: 0.1em 0 1em 0em black;
+      text-shadow: 1px 2px 3px black;
     }   
   `]
 })
@@ -119,7 +116,7 @@ export class DumpertMediaComponent {
       parent.innerHTML = `<img id="${DumpertMediaComponent.MEDIA_ELEMENT_ID}" src="${this.getMediaVariant().uri}" />`;
     }
     
-    let child = document.getElementById(DumpertMediaComponent.MEDIA_ELEMENT_ID);
+    const child = document.getElementById(DumpertMediaComponent.MEDIA_ELEMENT_ID);
     if (!child) {
       return;
     }
@@ -135,8 +132,15 @@ export class DumpertMediaComponent {
     else if (child instanceof HTMLVideoElement) {
       this.videoElement = new ElementRef(child);
 
-      child.onplay = () => (this.showReplay = false, child.style.opacity = '1');
-      child.onended = () => (this.showReplay = true, child.style.opacity = '0.3');
+      const handleVideo = (playing: boolean) => () => (this.showReplay = !playing, child.style.opacity = playing ? '1' : '0.3'); 
+      
+      child.onplay = handleVideo(true);
+      child.onended = handleVideo(false);
+
+      if (SamsungAPI.isSamsungTv()) {
+        child.addEventListener('play', handleVideo(true));
+        child.addEventListener('ended', handleVideo(false));
+      }
     }
   }
 
@@ -183,13 +187,19 @@ export class DumpertMediaComponent {
         } else {
           video.pause();
         }
-        video.controls = video.paused;
-        video.hideFocus = !video.controls;
         break;
       case SamsungAPI.tvKey.KEY_0:
-        video.pause();
-        video.currentTime = 0;
-        video.play().then(() => (video.controls = false, video.hideFocus = true));
+        if (SamsungAPI.isSamsungTv()) {
+          video.load();
+        } else {
+          video.pause();
+          video.currentTime = 0;
+          video.play();
+        }
+        break;
     }
+    
+    video.controls = video.paused;
+    video.hideFocus = !video.controls;
   }
 }

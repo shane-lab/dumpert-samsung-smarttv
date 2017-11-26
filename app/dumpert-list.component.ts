@@ -11,6 +11,7 @@ import { DumpertService, IPost } from './dumpert.service';
         <h3>{{post.title | truncate : 40 }}</h3>
         <p class="info">{{post.date}}</p>
         <p [innerHTML]="post.description | htmlTruncate : 100 : null : 'middle'"></p>
+        <img *ngIf="post.media.length > 1" class="thumbnail multimedia" src="{{post.thumbnail}}" /> 
       </li>
     </ul>
     <div id="error" *ngIf="error">
@@ -59,21 +60,34 @@ import { DumpertService, IPost } from './dumpert.service';
 
       /** fallback for undefined mediatype */
       background-position: -129px -34px;
+      z-index: 2;
     }
 
     ul.posts li.img:before, ul.posts li.foto:before {
       background-position: -129px -34px;
+      width: 18px;
     }
 
     ul.posts li.video:before {
       background-position: -184px -38px;
     }
 
-    ul.posts li img {
+    ul.posts li img {    
+      position: relative;
+      z-index: 1;
       float: left;
       margin-right: 16px;
       margin-top: 5px;
       box-shadow: 1px 2px 3px #313131;
+    }
+
+    ul.posts li img.multimedia {
+      position: relative;
+      top: -74px;
+      left: -113px;
+      opacity: 0.5;
+      z-index: 0;
+      box-shadow: 2px 3px 4px #000;
     }
 
     ul.posts li h3 {
@@ -186,6 +200,10 @@ export class DumpertListComponent {
     let max = this.posts.length - 1;
     if (index > max) {
       index = max;
+    }
+
+    if (index <= -1) {
+      return;
     }
 
     this.postIndex = index;

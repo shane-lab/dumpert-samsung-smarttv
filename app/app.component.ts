@@ -38,7 +38,7 @@ enum ColorTheme {
       width: 100%;
       background-color: #212121;
       box-shadow: 0 8px 6px -6px #999;
-      z-index: 1;
+      z-index: 3;
     }
     nav:hover, nav.selected {
       background-color: #111;
@@ -88,6 +88,7 @@ enum ColorTheme {
       top: 100px;
       width: 100%;
       opacity: 0.5;
+      padding-bottom: 10px;
     }
     dumpert-list.selected {
       opacity: 1.0;
