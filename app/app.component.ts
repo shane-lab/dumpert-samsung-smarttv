@@ -50,7 +50,7 @@ enum ColorTheme {
       left: 5px;
       width: 380px;
       height: 100px;
-      background-image: url(http://gscdn.nl/dump/images/allsprites-s6c30d074dd.png);
+      background-image: url(assets/img/icons.png);
       background-repeat: no-repeat;
       background-position: 0 -127px;
     }
@@ -205,10 +205,6 @@ export class AppComponent {
   }
 
   private handleListKeyboard(keyCode: number) {
-    // if (!SamsungAPI.isSamsungTv()) {
-    //   return;
-    // }
-
     switch(keyCode) {
       case SamsungAPI.tvKey.KEY_ENTER:
         this.list.select();

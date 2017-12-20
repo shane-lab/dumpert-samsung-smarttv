@@ -23,6 +23,7 @@ export enum MediaType {
 export interface IMediaVariant {
   version: string;
   uri: string;
+  isYouTube?: boolean;
 }
 
 export interface IMedia {
@@ -171,6 +172,9 @@ export class DumpertService {
         // fixes undefined or filters humanfactor for the mediatype selector.
         if (!postMedia.mediaType || postMedia.mediaType.trim().length <= 0) {
           postMedia.mediaType = MediaType[postMedia.variants[0].uri.indexOf('mp4') ? MediaType.VIDEO : MediaType.TEMPLATE];
+        }
+        for (let variant of postMedia.variants) {
+          variant.isYouTube = variant.uri.indexOf('youtube') >= 0;
         }
         
         post.media.push(postMedia);

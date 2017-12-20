@@ -30,6 +30,7 @@
       'text': 'plugin-text.js',
       'angular2-truncate': 'npm:angular2-truncate',
       'ng2-img-fallback': 'npm:ng2-img-fallback',
+      'j-i-c': 'npm:j-i-c/dist/JIC.min.js',
 
       //shims
       'core-js-shim':'npm:core-js/client/shim.min.js',

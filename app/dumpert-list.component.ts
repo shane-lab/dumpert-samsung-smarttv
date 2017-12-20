@@ -6,12 +6,13 @@ import { DumpertService, IPost } from './dumpert.service';
   selector: 'dumpert-list',
   template: `
     <ul class="posts" *ngIf="posts">
-      <li id="post-{{i}}" class="post" *ngFor="let post of posts; let i = index" [ngClass]="[post.media[0].mediaType | lowercase, postIndex === i ? 'selected' : '']" (click)="onClick(post, i)" [style.width.px]="fixedPostWidth">
-        <img class="thumbnail" src="{{post.thumbnail}}" [src-fallback]="'assets/img/default-thumbnail.png'" alt="{{post.id}} thumbnail" />
-        <h3>{{post.title | truncate : 40 }}</h3>
-        <p class="info">{{post.date}}</p>
-        <p [innerHTML]="post.description | htmlTruncate : 100 : null : 'middle'"></p>
-        <img *ngIf="post.media.length > 1" class="thumbnail multimedia" src="{{post.thumbnail}}" /> 
+      <li id="post-{{i}}" class="post" *ngFor="let post of posts; let i = index" [ngClass]="[post.media[0].mediaType | lowercase, post.media[0].variants[0]?.isYouTube === true ? 'yt' : '', postIndex === i ? 'selected' : '', post.media.length > 1 ? 'multi-media' : '']" (click)="onClick(post, i)" [style.width.px]="fixedPostWidth">
+        <div class="post-content" [attr.data-media]="post.media.length">
+          <img class="thumbnail" src="{{post.thumbnail}}" [src-fallback]="'assets/img/default-thumbnail.png'" alt="{{post.id}} thumbnail" />
+          <h3>{{post.title | truncate : 40 }}</h3>
+          <p class="info">{{post.date}}</p>
+          <p [innerHTML]="post.description | htmlTruncate : 100 : null : 'middle'"></p>
+        </div>
       </li>
     </ul>
     <div id="error" *ngIf="error">
@@ -55,7 +56,7 @@ import { DumpertService, IPost } from './dumpert.service';
       width: 20px;
       height: 20px;
       opacity: 0.8;
-      background-image: url(http://gscdn.nl/dump/images/allsprites-s6c30d074dd.png);
+      background-image: url(assets/img/icons.png);
       background-repeat: no-repeat;
 
       /** fallback for undefined mediatype */
@@ -72,7 +73,34 @@ import { DumpertService, IPost } from './dumpert.service';
       background-position: -184px -38px;
     }
 
-    ul.posts li img {    
+    ul.posts li.video.yt:before {
+      background-position: -242px -38px !important;
+    }
+
+    ul.posts li .post-content {
+      width: 100%;
+      height: 100%;
+    }
+
+    ul.posts li.multi-media .post-content:before {
+      content: attr(data-media);
+      position: absolute;
+      display: block;
+      margin-top: 92px;
+      margin-left: 0px;
+      width: 20px;
+      height: 20px;
+      background-color: #212121;
+      box-shadow: 1px 3px 6px 1px #353535;
+      text-align: center;
+      line-height: 20px;
+      border-radius: 28%;
+      border: 1px solid #798c6c;
+      color: #bdbdbd;
+      z-index: 2;
+    }
+
+    .post-content img {    
       position: relative;
       z-index: 1;
       float: left;
@@ -81,26 +109,17 @@ import { DumpertService, IPost } from './dumpert.service';
       box-shadow: 1px 2px 3px #313131;
     }
 
-    ul.posts li img.multimedia {
-      position: relative;
-      top: -74px;
-      left: -113px;
-      opacity: 0.5;
-      z-index: 0;
-      box-shadow: 2px 3px 4px #000;
-    }
-
-    ul.posts li h3 {
+    .post-content h3 {
       margin-top: 0;
       margin-bottom: 0;
       font-size: 20px
     }
     
-    ul.posts li p {
+    .post-content p {
       font-size: 12px
     }
 
-    ul.posts li p.info {
+    .post-content p.info {
       color: #888;
       margin-top: 2px;
     }
@@ -115,13 +134,13 @@ import { DumpertService, IPost } from './dumpert.service';
     }
 
     @media screen and (max-width: 640px) {
-      ul.posts li {
+      .post-content {
         width: calc(100% - 20px - 15px);
       }
     }
 
     @media only screen and (min-width : 640px) and (max-width : 1024px) {
-      ul.posts li {
+      .post-content {
         width: calc(100% / 2 - 20px - 15px);
       }
     }

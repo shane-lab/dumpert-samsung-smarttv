@@ -2,6 +2,10 @@ import { Component, ViewChild, Input, ElementRef, HostListener, SimpleChanges } 
 
 import { IMedia, IMediaVariant, MediaType } from './dumpert.service';
 
+// import 'j-i-c';
+
+// declare function jic (original: HTMLImageElement, percentage: number, as?: 'jpg' | 'png'): HTMLImageElement;
+
 @Component({
   selector: 'dumpert-media',
   template: `
@@ -84,20 +88,27 @@ export class DumpertMediaComponent {
   private showReplay = false;
 
   ngOnChanges(changes: SimpleChanges) {
-    if (!this.media) {
-      return;
-    }
-
     const parent = this.mediaContainer.nativeElement as HTMLElement;
 
     if (!parent) {
       return;
     }
+    
+    this.clear();
+    
+    if (!this.media) {
+      return;
+    }
+
+    const { uri, isYouTube } = this.getMediaVariant();
+    
+    if (!uri) {
+      return;
+    }
 
     if (this.isVideo()) {
-      let uri = this.getMediaVariant().uri;
-      if (this.isYouTube(uri)) {
-        let key = uri.split(':')[1];
+      if (isYouTube) {
+        const key = uri.split(':')[1];
         parent.innerHTML = `<object id="${DumpertMediaComponent.MEDIA_ELEMENT_ID}" data="${this.embedAsYouTubeURI(key)}" controls="false">video playback is not supported</object>`;
       } else {
         // using either html5 video, flash or the native swfplayer to play video feed 
@@ -113,7 +124,13 @@ export class DumpertMediaComponent {
         `;
       }
     } else {
-      parent.innerHTML = `<img id="${DumpertMediaComponent.MEDIA_ELEMENT_ID}" src="${this.getMediaVariant().uri}" />`;
+      const img = new Image();
+      img.id = DumpertMediaComponent.MEDIA_ELEMENT_ID;
+      // img.crossOrigin = 'Access-Control-Allow-Origin';
+      // img.onload = () => img = jic.compress(img, 30, 'png');
+      img.src = uri;
+      
+      parent.appendChild(img);
     }
     
     const child = document.getElementById(DumpertMediaComponent.MEDIA_ELEMENT_ID);
@@ -156,10 +173,6 @@ export class DumpertMediaComponent {
     return this.media && this.media.mediaType === MediaType[MediaType.VIDEO];
   }
 
-  private isYouTube(uri: string): boolean {
-    return uri && uri.indexOf('youtube') >= 0;
-  }
-
   private embedAsYouTubeURI(key: string): string {
     if (!key) {
       return null;
@@ -173,6 +186,21 @@ export class DumpertMediaComponent {
     return a !== b && (('mobile' === a && 'tablet' === b || 'mobile' === a && '720p' === b || 'tablet' === a && '720p' === b) && (c = !0), c);
   }
 
+  private clear() {
+    this.showReplay = false;
+
+    this.videoElement = null;
+
+    const parent = this.mediaContainer.nativeElement as HTMLElement;
+
+    if (!parent) {
+      return;
+    }
+
+    while (parent.firstChild)
+      parent.removeChild(parent.firstChild);
+  }
+
   public onKeyDown(keyCode: number) {
     if (!this.videoElement) {
       return;
@@ -181,12 +209,23 @@ export class DumpertMediaComponent {
     const video = this.videoElement.nativeElement as HTMLVideoElement;
 
     switch(keyCode) {
+      case SamsungAPI.tvKey.KEY_RETURN:
+        this.clear();
+        break;
       case SamsungAPI.tvKey.KEY_ENTER:
         if (video.paused) {
           video.play();
         } else {
           video.pause();
         }
+        break;
+      case SamsungAPI.tvKey.KEY_FF:
+        if (video.currentTime + 10 < video.duration) {
+          video.currentTime = video.currentTime + 10;
+        }
+        break;
+      case SamsungAPI.tvKey.KEY_RW:
+        video.currentTime = video.currentTime - 10 < 0 ? 0 : video.currentTime - 10;
         break;
       case SamsungAPI.tvKey.KEY_0:
         if (SamsungAPI.isSamsungTv()) {
